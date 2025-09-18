@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ResQ 112 - Live Support</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700;900&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #000000;
+            --text-color: #e0e0e0;
+            --highlight-color: #00ffff;
+            --user-bubble-bg: #00ffff;
+            --user-bubble-text: #000000;
+            --support-bubble-bg: #2b2b2b;
+            --support-bubble-text: #ffffff;
+            --primary-font: 'Exo 2', sans-serif;
+            --secondary-font: 'Space Grotesk', sans-serif;
+        }
+        body {
+            font-family: var(--secondary-font);
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        #chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+            max-width: 800px; /* Optional: Set a max-width for very wide screens */
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+        .chat-header {
+            padding: 1rem;
+            font-family: var(--primary-font);
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: var(--text-color-light);
+            text-align: center;
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--support-bubble-bg);
+        }
+        #chat-messages {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .message {
+            max-width: 70%;
+            padding: 0.75rem 1.25rem;
+            border-radius: 1.25rem;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        .user {
+            background-color: var(--user-bubble-bg);
+            color: var(--user-bubble-text);
+            align-self: flex-end;
+            border-bottom-right-radius: 0.25rem;
+        }
+        .support {
+            background-color: var(--support-bubble-bg);
+            color: var(--support-bubble-text);
+            align-self: flex-start;
+            border-bottom-left-radius: 0.25rem;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid var(--support-bubble-bg);
+            flex-shrink: 0;
+        }
+        #chat-input {
+            flex-grow: 1;
+            border: none;
+            background: transparent;
+            padding: 0.75rem;
+            color: var(--text-color);
+            outline: none;
+            font-size: 1rem;
+            border-bottom: 2px solid #444;
+            transition: border-color 0.3s ease;
+        }
+        #chat-input:focus {
+            border-bottom-color: var(--highlight-color);
+        }
+        #chat-send-btn {
+            background: none;
+            border: none;
+            color: var(--highlight-color);
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0 1.5rem;
+            transition: transform 0.2s ease;
+        }
+        #chat-send-btn:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="chat-container">
+        <div class="chat-header">Live Support</div>
+        <div id="chat-messages">
+            </div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Type a message...">
+            <button id="chat-send-btn">Send</button>
+        </div>
+    </div>
+
+    <script type="module">
+        const firebaseConfig={ apiKey:"AIzaSyBcLtaRPt6hTo4aEFRvcBwNq5-00soEjB4", authDomain:"sos-c1499.firebaseapp.com", databaseURL:"https://sos-c1499-default-rtdb.asia-southeast1.firebasedatabase.app", projectId:"sos-c1499", storageBucket:"sos-c1499.appspot.com", messagingSenderId:"1008729495848", appId:"1:1008729495848:web:7d6c7d3a6047e2736e981d", measurementId:"G-JGBY3ZZPGC" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const chatSendBtn = document.getElementById('chat-send-btn');
+
+        // Manage Chat Session ID
+        let chatSessionId = sessionStorage.getItem('chatSessionId');
+        if (!chatSessionId) {
+            chatSessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+            sessionStorage.setItem('chatSessionId', chatSessionId);
+        }
+        const chatRef = db.ref('supportChats/' + chatSessionId);
+
+        // Send a message
+        function sendMessage() {
+            const text = chatInput.value.trim();
+            if (text === '') return;
+            const message = {
+                sender: 'user',
+                text: text,
+                timestamp: new Date().toISOString()
+            };
+            chatRef.push(message);
+            chatInput.value = '';
+            chatInput.focus();
+        }
+        chatSendBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Listen for and display messages
+        chatRef.on('child_added', (snapshot) => {
+            const msg = snapshot.val();
+            const msgEl = document.createElement('div');
+            msgEl.classList.add('message', msg.sender); // sender is 'user' or 'support'
+            msgEl.textContent = msg.text;
+            chatMessages.appendChild(msgEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to bottom
+        });
+    </script>
+</body>
+</html>
